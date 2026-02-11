@@ -1,0 +1,481 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-roboto-mono);
+}
+
+:root {
+  /* Light Mode - Premium Emerald & Navy Theme */
+  --background: #ffffff;
+  --foreground: #0f172a;
+  
+  /* Primary: Emerald to Forest Green Gradient */
+  --primary: #007a3d;
+  --primary-dark: #003d1f;
+  --primary-light: #00a651;
+  --primary-foreground: #ffffff;
+  
+  /* Secondary: Navy to Midnight Blue */
+  --secondary: #f8fafc;
+  --secondary-dark: #e2e8f0;
+  --secondary-foreground: #0f172a;
+  
+  /* Accent: Gold */
+  --accent: #d4af37;
+  --accent-foreground: #0f172a;
+  
+  /* Card */
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  
+  /* Muted */
+  --muted: #94a3b8;
+  --muted-foreground: #64748b;
+  
+  /* Border */
+  --border: #e2e8f0;
+
+  /* Popover */
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  
+  /* Gradient Colors */
+  --gradient-primary-start: #002c6f;
+  --gradient-primary-mid: #007a3d;
+  --gradient-primary-end: #003d1f;
+  
+  --gradient-secondary-start: #0a2540;
+  --gradient-secondary-mid: #081b33;
+  --gradient-secondary-end: #050f21;
+}
+
+.dark {
+  /* Dark Mode - Deep Navy with Emerald & Gold Accents */
+  --background: #050f21;
+  --foreground: #f8fafc;
+  
+  /* Primary: Emerald to Forest Green */
+  --primary: #00a651;
+  --primary-dark: #007a3d;
+  --primary-light: #00d166;
+  --primary-foreground: #ffffff;
+  
+  /* Secondary: Navy to Midnight Blue */
+  --secondary: #0a2540;
+  --secondary-dark: #050f21;
+  --secondary-foreground: #f8fafc;
+  
+  /* Accent: Gold */
+  --accent: #d4af37;
+  --accent-foreground: #0f172a;
+  
+  /* Card */
+  --card: #081b33;
+  --card-foreground: #f8fafc;
+  
+  /* Muted */
+  --muted: #475569;
+  --muted-foreground: #94a3b8;
+  
+  /* Border */
+  --border: #1e293b;
+
+  /* Popover */
+  --popover: #050f21;
+  --popover-foreground: #f8fafc;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom Scrollbar */
+/* Hide Scrollbar but allow scrolling */
+::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  background: transparent;
+}
+
+html {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dark .glass-panel {
+  background: rgba(8, 27, 51, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient Text Utilities */
+.text-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(135deg, var(--gradient-primary-start), var(--gradient-primary-mid), var(--gradient-primary-end));
+}
+
+.text-gradient-emerald {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(135deg, #007a3d, #00a651);
+}
+
+.text-gradient-gold {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(135deg, #d4af37, #f4d03f);
+}
+
+/* Gradient Background Utilities */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, var(--gradient-primary-start), var(--gradient-primary-mid), var(--gradient-primary-end));
+}
+
+.bg-gradient-secondary {
+  background: linear-gradient(135deg, var(--gradient-secondary-start), var(--gradient-secondary-mid), var(--gradient-secondary-end));
+}
+
+.bg-gradient-emerald {
+  background: linear-gradient(135deg, #007a3d, #00a651, #00d166);
+}
+
+.bg-gradient-gold {
+  background: linear-gradient(135deg, #d4af37, #f4d03f);
+}
+
+/* Animated Gradient Background */
+.bg-gradient-animated {
+  background: linear-gradient(
+    -45deg,
+    var(--gradient-primary-start),
+    var(--gradient-primary-mid),
+    var(--gradient-primary-end),
+    var(--gradient-secondary-start)
+  );
+  background-size: 400% 400%;
+  animation: gradient-shift 15s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Glow Effects */
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(0, 122, 61, 0.4), 0 0 40px rgba(0, 122, 61, 0.2);
+}
+
+.glow-gold {
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.4), 0 0 40px rgba(212, 175, 55, 0.2);
+}
+
+.hover-glow-emerald:hover {
+  box-shadow: 0 0 30px rgba(0, 122, 61, 0.6), 0 0 60px rgba(0, 122, 61, 0.3);
+  transition: box-shadow 0.3s ease;
+}
+
+.hover-glow-gold:hover {
+  box-shadow: 0 0 30px rgba(212, 175, 55, 0.6), 0 0 60px rgba(212, 175, 55, 0.3);
+  transition: box-shadow 0.3s ease;
+}
+
+/* Shimmer Effect */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+.dark .shimmer::before {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(0, 166, 81, 0.2),
+    transparent
+  );
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Floating Animation */
+.float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+/* Pulse Glow Animation */
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(0, 122, 61, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(0, 122, 61, 0.8);
+  }
+}
+
+/* Gradient Border */
+.gradient-border {
+  position: relative;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--gradient-primary-mid), var(--accent));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Hover Lift Effect */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Scale on Hover */
+.hover-scale {
+  transition: transform 0.3s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+/* Fade In Animation */
+.fade-in {
+  animation: fadeIn 0.6s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Slide Up Animation */
+.slide-up {
+  animation: slideUp 0.6s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Spin Animation */
+.spin-slow {
+  animation: spin 8s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Badge Styles */
+.badge-gold {
+  background: linear-gradient(135deg, #d4af37, #f4d03f);
+  color: #0f172a;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* NFT Card Rarity Borders */
+.rarity-common {
+  border: 2px solid #94a3b8;
+}
+
+.rarity-rare {
+  border: 2px solid #3b82f6;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+}
+
+.rarity-epic {
+  border: 2px solid #a855f7;
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+}
+
+.rarity-legendary {
+  border: 2px solid #d4af37;
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+  animation: pulse-glow-gold 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow-gold {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(212, 175, 55, 0.8);
+  }
+}
+
+/* Loading Animation */
+.loading-spinner {
+  border: 3px solid rgba(0, 122, 61, 0.1);
+  border-top: 3px solid var(--primary);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+/* Ripple Effect */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.ripple:active::after {
+  width: 300px;
+  height: 300px;
+}
+
+/* Leaflet Draw Toolbar Customization */
+.leaflet-draw-toolbar a {
+  background-color: var(--background) !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
+}
+
+.leaflet-draw-toolbar a:hover {
+  background-color: var(--secondary) !important;
+}
+
+.leaflet-draw-actions {
+  background-color: var(--background) !important;
+}
+
+.leaflet-draw-actions a {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  border-left: 1px solid var(--border) !important;
+}
+
+.leaflet-draw-actions a:hover {
+  background-color: var(--secondary) !important;
+}
+
+.leaflet-touch .leaflet-bar {
+  border: 2px solid var(--border) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+.leaflet-bar a {
+  background-color: var(--background) !important;
+  border-bottom: 1px solid var(--border) !important;
+  color: var(--foreground) !important;
+}
+
+.leaflet-bar a:hover {
+  background-color: var(--secondary) !important;
+}
+
+.leaflet-bar a:last-child {
+  border-bottom: none !important;
+}

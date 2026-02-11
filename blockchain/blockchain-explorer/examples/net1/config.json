@@ -1,0 +1,9 @@
+{
+	"network-configs": {
+		"test-network": {
+			"name": "LandLedger Network",
+			"profile": "./connection-profile/landledger-network.json"
+		}
+	},
+	"license": "Apache-2.0"
+}
