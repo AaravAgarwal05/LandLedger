@@ -3,20 +3,25 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Tag, Share2, ExternalLink, Loader2, ArrowLeft } from "lucide-react";
+import { Tag, Share2, ExternalLink, Loader2, ArrowLeft, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import api from "@/lib/api-client";
 import { AddToMetaMask } from "@/components/AddToMetaMask";
+import { useUser } from "@clerk/nextjs";
+import { toast } from "sonner";
 
 export default function NFTDetailsPage() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useUser();
   const tokenId = params.tokenId as string;
   
   const [land, setLand] = useState<any>(null);
+  const [listing, setListing] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     const fetchNFT = async () => {
@@ -24,6 +29,7 @@ export default function NFTDetailsPage() {
         const response = await api.get(`/api/nfts/${tokenId}`);
         if (response.data.success) {
           setLand(response.data.land);
+          setListing(response.data.listing);
         } else {
           setError("NFT not found");
         }
@@ -39,6 +45,25 @@ export default function NFTDetailsPage() {
       fetchNFT();
     }
   }, [tokenId]);
+
+const handleTradeNow = async () => {
+      if (!user) {
+        toast.error("Please sign in to trade");
+        return;
+      }
+      setActionLoading(true);
+      try {
+        const response = await api.post('/api/trades', { landId: land.id, price: { amount: listing.price.amount, currency: listing.price.currency } });
+        if (response.data.success) {
+          toast.success("Trade request created successfully!");
+          router.push(`/trades/${response.data.data.id}`);
+        }
+      } catch (error: any) {
+        toast.error(error.response?.data?.error || "Failed to create trade request");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -60,7 +85,8 @@ export default function NFTDetailsPage() {
     );
   }
 
-  const ipfsImage = land.ipfsCid ? `https://gateway.pinata.cloud/ipfs/${land.ipfsCid}` : '/placeholder-land.jpg';
+  const ipfsImage = land.ipfsCid ? `https://gateway.pinata.cloud/ipfs/${land.ipfsCid}` : 'https://placehold.co/600x400/png?text=LandLedger+NFT';
+  const isOwner = user && user.id === land.ownerClerkId;
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -79,11 +105,16 @@ export default function NFTDetailsPage() {
             src={ipfsImage} 
             alt={land.landTitle} 
             className="object-cover w-full h-full"
-            onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-land.jpg'; }} 
+            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/600x400/png?text=LandLedger+NFT'; }} 
           />
           <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md text-white px-3 py-1 rounded-full text-sm font-mono">
             #{land.tokenId}
           </div>
+          {listing && (
+            <div className="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1 shadow-lg">
+              <Tag className="w-3 h-3" /> FOR SALE: {listing.price.amount} {listing.price.currency}
+            </div>
+          )}
         </motion.div>
 
         {/* Info Section */}
@@ -147,6 +178,31 @@ export default function NFTDetailsPage() {
           </div>
 
           <div className="flex flex-col gap-4">
+            {!listing && isOwner && (
+              <Button 
+                onClick={() => router.push(`/marketplace/list?tokenId=${land.tokenId}`)} 
+                className="w-full gap-2 text-lg py-6"
+              >
+                <Tag className="w-5 h-5" /> List on Marketplace
+              </Button>
+            )}
+
+            {listing && !isOwner && (
+              <Button 
+                  onClick={handleTradeNow} 
+                  disabled={actionLoading}
+                  className="w-full gap-2 text-lg py-6 bg-primary hover:bg-primary/90"
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                  {actionLoading ? "Processing..." : `Start Trade for ${listing.price.amount} ${listing.price.currency}`}
+
+            {listing && isOwner && (
+              <div className="p-4 border border-primary/30 bg-primary/5 rounded-lg text-center">
+                <p className="font-semibold text-primary mb-1">Your item is listed for sale</p>
+                <p className="text-sm text-muted-foreground">Price: {listing.price.amount} {listing.price.currency}</p>
+              </div>
+            )}
+
             <div className="flex gap-4">
               <Button 
                 variant="outline" 
@@ -164,7 +220,7 @@ export default function NFTDetailsPage() {
             </div>
             <Button variant="secondary" className="w-full gap-2" onClick={() => {
               navigator.clipboard.writeText(window.location.href);
-              // toast.success("Link copied!"); // Need to import toast or use sonner
+              toast.success("Link copied!");
             }}>
               <Share2 className="w-4 h-4" /> Share NFT Link
             </Button>
