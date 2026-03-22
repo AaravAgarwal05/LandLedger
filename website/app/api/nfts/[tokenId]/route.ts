@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { Land } from "@/models/Land";
+import { Listing } from "@/models/Listing";
 
 export async function GET(
   request: Request,
@@ -19,9 +20,12 @@ export async function GET(
       );
     }
 
+    const listing = await Listing.findOne({ tokenId, status: 'active' }).lean();
+
     return NextResponse.json({
       success: true,
       land,
+      listing: listing || null,
     });
   } catch (error) {
     console.error("Error fetching NFT:", error);

@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [lands, setLands] = useState<any[]>([]);
   const [nfts, setNfts] = useState<any[]>([]);
+  const [listings, setListings] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   // Redirect to home if not signed in
@@ -31,12 +32,23 @@ export default function DashboardPage() {
     const fetchData = async () => {
       if (!isSignedIn) return;
       try {
-        const [landsRes, nftsRes] = await Promise.all([
+        const [landsRes, nftsRes, listingsRes] = await Promise.all([
           api.get('/api/lands'),
-          api.get('/api/nfts')
+          api.get('/api/nfts'),
+          api.get('/api/market/my-listings').catch(() => ({ data: { listings: [] } }))
         ]);
         
-        if (landsRes.data.success) setLands(landsRes.data.lands);
+        if (landsRes.data.success) {
+          const fetchedLands = landsRes.data.lands;
+          // Combine listings with lands
+          const userListings = listingsRes.data?.listings || [];
+          const landsWithListings = fetchedLands.map((land: any) => {
+            const activeListing = userListings.find((l: any) => l.tokenId === land.tokenId && l.status === 'active');
+            return { ...land, activeListing };
+          });
+          setLands(landsWithListings);
+          setListings(userListings);
+        }
         if (nftsRes.data.success) setNfts(nftsRes.data.nfts);
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
@@ -175,6 +187,8 @@ function LandCard({ land }: { land: any }) {
     'rejected': 'bg-red-500/10 text-red-500',
   };
 
+  const [isRemoving, setIsRemoving] = useState(false);
+
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
       <Card className="hover:shadow-md transition-shadow">
@@ -182,8 +196,15 @@ function LandCard({ land }: { land: any }) {
           <CardTitle className="text-sm font-medium truncate pr-2">
             {land.landTitle || `Land #${land.landId}`}
           </CardTitle>
-          <div className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[land.status as keyof typeof statusColors] || 'bg-gray-500/10 text-gray-500'}`}>
-            {land.status}
+          <div className="flex gap-2">
+            {land.activeListing && (
+              <div className="px-2 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500">
+                Listed
+              </div>
+            )}
+            <div className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[land.status as keyof typeof statusColors] || 'bg-gray-500/10 text-gray-500'}`}>
+              {land.status}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -192,7 +213,7 @@ function LandCard({ land }: { land: any }) {
               <MapIcon className="w-4 h-4" />
               {land.area} sq.m
             </div>
-            <div className="text-sm text-muted-foreground line-clamp-2">
+            <div className="text-sm text-muted-foreground line-clamp-2 min-h-[40px]">
               {typeof land.address === 'object' 
                 ? [
                     land.address?.plotNo,
@@ -204,11 +225,46 @@ function LandCard({ land }: { land: any }) {
                 : land.address
               }
             </div>
-            <Link href={`/lands/${land._id}`} className="block pt-2">
-              <Button variant="outline" size="sm" className="w-full gap-2">
-                View Details <ArrowUpRight className="w-3 h-3" />
-              </Button>
-            </Link>
+            <div className="flex gap-2 pt-2">
+              <Link href={`/lands/${land.landId}`} className="flex-1">
+                <Button variant="outline" size="sm" className="w-full gap-1">
+                  View <ArrowUpRight className="w-3 h-3" />
+                </Button>
+              </Link>
+              {land.status === 'minted' && !land.activeListing && (
+                <Link href={`/marketplace/list?tokenId=${land.tokenId}`} className="flex-1">
+                  <Button size="sm" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
+                    List
+                  </Button>
+                </Link>
+              )}
+              {land.activeListing && (
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  className="flex-1"
+                  disabled={isRemoving}
+                  onClick={async () => {
+                    setIsRemoving(true);
+                    try {
+                      const { toast } = await import('sonner');
+                      const res = await api.post('/api/market/unlist', { listingId: land.activeListing.listingId });
+                      if (res.data.success) {
+                        toast.success("Listing removed");
+                        window.location.reload();
+                      }
+                    } catch (e: any) {
+                      const { toast } = await import('sonner');
+                      toast.error("Failed to unlist: " + e.message);
+                    } finally {
+                      setIsRemoving(false);
+                    }
+                  }}
+                >
+                  {isRemoving ? 'Removing...' : 'Unlist'}
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

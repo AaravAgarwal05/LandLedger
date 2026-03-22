@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Hexagon, Map, ShoppingBag, Info, LayoutDashboard } from 'lucide-react';
+import { Menu, X, Hexagon, Map, ShoppingBag, Info, LayoutDashboard, Handshake } from 'lucide-react';
 import { SignInButton, UserButton, useUser } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
@@ -14,6 +14,7 @@ const navItems = [
   { name: 'Home', href: '/', icon: Hexagon },
   { name: 'Explore', href: '/explore', icon: Map },
   { name: 'Marketplace', href: '/marketplace', icon: ShoppingBag },
+  { name: 'Trades', href: '/trades', icon: Handshake },
   { name: 'About', href: '/about', icon: Info },
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
 ];

@@ -9,12 +9,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import api from "@/lib/api-client";
 import { useUserSync } from "@/hooks/useUserSync";
+import { useEthPrice } from "@/hooks/useEthPrice";
 import { AddToMetaMask } from "@/components/AddToMetaMask";
 
 export default function LandDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { isSignedIn, loading: authLoading } = useUserSync();
+  const { isSignedIn, loading: authLoading, user } = useUserSync();
+  const { ethRate, convertEthToInr, formatInr } = useEthPrice();
   const landId = params.landId as string;
   
   const [land, setLand] = useState<any>(null);
@@ -194,20 +196,73 @@ export default function LandDetailsPage() {
               <div className="pt-6 border-t">
                 <h3 className="font-semibold mb-4">Actions</h3>
                 {land.status === 'minted' ? (
-                  <Button className="w-full gap-2" onClick={() => router.push(`/nfts/${land.tokenId}`)}>
-                    <ExternalLink className="w-4 h-4" />
-                    View NFT Page
-                  </Button>
+                  <div className="space-y-3">
+                    <Button className="w-full gap-2" variant="outline" onClick={() => router.push(`/nfts/${land.tokenId}`)}>
+                      <ExternalLink className="w-4 h-4" />
+                      View NFT Page
+                    </Button>
+                    
+                    {user?.id === land.ownerClerkId ? (
+                      land.activeListing ? (
+                        <div className="p-3 bg-secondary/20 rounded-md border text-center text-sm space-y-2">
+                          <div>
+                            <p className="font-semibold text-primary mb-1">Currently Listed for Sale</p>
+                            <p className="text-muted-foreground">{land.activeListing.price.amount} {land.activeListing.price.currency} {land.activeListing.price.currency === 'ETH' && ethRate && `(≈ ${formatInr(convertEthToInr(land.activeListing.price.amount))})`}</p>
+                          </div>
+                          <Button 
+                            variant="destructive" 
+                            size="sm" 
+                            className="w-full"
+                            onClick={() => {
+                              toast.promise(api.post('/api/market/unlist', { listingId: land.activeListing.listingId }), {
+                                loading: 'Removing listing...',
+                                success: () => {
+                                  setTimeout(() => window.location.reload(), 1500);
+                                  return 'Listing removed!';
+                                },
+                                error: (err) => `Failed to remove: ${err.response?.data?.error || err.message}`
+                              });
+                            }}
+                          >
+                            Remove Listing
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button className="w-full gap-2" onClick={() => router.push(`/marketplace/list?tokenId=${land.tokenId}`)}>
+                          List on Marketplace
+                        </Button>
+                      )
+                    ) : land.activeListing ? (
+                      <Button className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white" onClick={() => {
+                          toast.promise(api.post('/api/trades', { landId: land.id, price: { amount: land.activeListing.price.amount, currency: land.activeListing.price.currency } }), {
+                            loading: 'Creating trade request...',
+                            success: (res) => {
+                              setTimeout(() => router.push(`/trades/${res.data.id}`), 1500);
+                              return 'Trade request created!';
+                            },
+                            error: 'Failed to create trade request'
+                          });
+                        }}>
+                          Start Trade for {land.activeListing.price.amount} {land.activeListing.price.currency} {land.activeListing.price.currency === 'ETH' && ethRate && `(≈ ${formatInr(convertEthToInr(land.activeListing.price.amount))})`}
+                      </Button>
+                    ) : (
+                      <div className="p-3 bg-secondary/10 rounded-md text-center text-sm text-muted-foreground">
+                        This land is not currently for sale
+                      </div>
+                    )}
+                  </div>
                 ) : (
-                  <Button onClick={handleMintRequest} className="gap-2" disabled={land.status !== 'verified'}>
-                    <ArrowRightLeft className="w-4 h-4" />
-                    Request Mint (Bridge to Ethereum)
-                  </Button>
-                )}
-                {land.status !== 'verified' && land.status !== 'minted' && (
-                   <p className="text-xs text-muted-foreground mt-2">
-                     Minting is only available for verified lands.
-                   </p>
+                  <div className="space-y-3">
+                    <Button onClick={handleMintRequest} className="w-full gap-2" disabled={land.status !== 'verified'}>
+                      <ArrowRightLeft className="w-4 h-4" />
+                      Request Mint (Bridge to Ethereum)
+                    </Button>
+                    {land.status !== 'verified' && land.status !== 'minted' && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        Minting is only available for verified lands.
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             </CardContent>
