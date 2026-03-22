@@ -50,21 +50,38 @@ async function main() {
   }
   const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
 
-  // Deploy
+// Deploy LandNFT
   const factory = new ethers.ContractFactory(artifact.abi, artifact.bytecode, wallet);
   const contract = await factory.deploy();
-  
-  console.log("⏳ Waiting for deployment transaction to be mined...");
+
+  console.log("⏳ Waiting for LandNFT deployment to be mined...");
   await contract.waitForDeployment();
 
   const contractAddress = await contract.getAddress();
   console.log("✅ LandNFT deployed to:", contractAddress);
 
+  // Deploy LandEscrow
+  console.log("🚀 Deploying LandEscrow contract...");
+  const escrowArtifactPath = path.join(__dirname, "../artifacts/contracts/LandEscrow.sol/LandEscrow.json");
+  if (!fs.existsSync(escrowArtifactPath)) {
+    throw new Error("Escrow artifacts not found. Run 'npx hardhat compile' first.");
+  }
+  const escrowArtifact = JSON.parse(fs.readFileSync(escrowArtifactPath, "utf8"));
+  
+  const escrowFactory = new ethers.ContractFactory(escrowArtifact.abi, escrowArtifact.bytecode, wallet);
+  const escrowContract = await escrowFactory.deploy(contractAddress);
+  
+  console.log("⏳ Waiting for LandEscrow deployment to be mined...");
+  await escrowContract.waitForDeployment();
+  const escrowAddress = await escrowContract.getAddress();
+  console.log("✅ LandEscrow deployed to:", escrowAddress);
+
   // Save deployment info
   const deploymentInfo = {
     network: "sepolia",
     chainId: (await provider.getNetwork()).chainId.toString(),
-    contractAddress: contractAddress,
+    contractAddress: contractAddress, // LandNFT
+    escrowAddress: escrowAddress,
     deployer: wallet.address,
     timestamp: new Date().toISOString(),
   };

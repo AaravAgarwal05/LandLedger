@@ -15,7 +15,7 @@ export interface LandNFT$Type {
   readonly deployedLinkReferences: {};
   readonly immutableReferences: {};
   readonly inputSourceName: "project/contracts/LandNFT.sol";
-  readonly buildInfoId: "solc-0_8_20-331d1e9b031e05871c1b5716ed6fe6780dde9c04";
+  readonly buildInfoId: "solc-0_8_20-5551683ce2821efcdd4e6cbf754f856ecad80181";
 };
 
 import "hardhat/types/artifacts";
