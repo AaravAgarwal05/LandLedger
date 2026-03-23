@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
+import dbConnect from "@/lib/mongodb";
 import { TradeRequest } from "@/models/TradeRequest";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
 
-export async function PATCH(req: Request, { params }: { params: { tradeId: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ tradeId: string }> }) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -13,9 +13,10 @@ export async function PATCH(req: Request, { params }: { params: { tradeId: strin
     const body = await req.json();
     const { status, txHash } = body;
 
-    await connectToDatabase();
+    await dbConnect();
 
-    const trade = await TradeRequest.findOne({ tradeId: params.tradeId });
+    const { tradeId } = await params;
+    const trade = await TradeRequest.findOne({ tradeId });
     if (!trade) {
       return NextResponse.json({ error: "Trade not found" }, { status: 404 });
     }

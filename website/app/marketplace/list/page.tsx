@@ -3,15 +3,16 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { DollarSign } from "lucide-react";
+import { IndianRupee, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import api from "@/lib/api-client";
 import { useUserSync } from "@/hooks/useUserSync";
+import { fetchEthToInrRate, inrToWei } from "@/lib/utils/pricing";
+import { ethers } from "ethers";
 
 export default function ListPage() {
   const router = useRouter();
@@ -20,83 +21,44 @@ export default function ListPage() {
   const prefillTokenId = searchParams.get("tokenId");
 
   const [tokenId, setTokenId] = useState(prefillTokenId || "");
-  const [price, setPrice] = useState("");
-  const [inrPrice, setInrPrice] = useState<number | null>(null);
-  const [ethToInrRate, setEthToInrRate] = useState<number | null>(null);
-  const [currency, setCurrency] = useState("ETH");
+  const [priceInr, setPriceInr] = useState("");   // what user types — always INR
+  const [ethRate, setEthRate] = useState<number>(250000);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !isSignedIn) {
-      router.push("/");
-    }
+    if (!authLoading && !isSignedIn) router.push("/");
   }, [authLoading, isSignedIn, router]);
 
   useEffect(() => {
-    const fetchRate = async () => {
-      try {
-        const res = await api.get('/api/eth-price');
-        if (res.data.success) {
-          setEthToInrRate(res.data.inrPrice);
-        }
-      } catch (err) {
-        console.error("Failed to fetch ETH exchange rate", err);
-      }
-    };
-    fetchRate();
+    fetchEthToInrRate().then(setEthRate);
   }, []);
 
-  const handlePriceChange = (val: string) => {
-    setPrice(val);
-    if (!val || isNaN(Number(val))) {
-      setInrPrice(null);
-    } else if (ethToInrRate) {
-      if (currency === 'ETH') {
-        setInrPrice(Number(val) * ethToInrRate);
-      } else if (currency === 'INR') {
-        setInrPrice(Number(val) / ethToInrRate); // Store ETH eq in inrPrice to display it!
-      }
-    }
-  };
-
-  const handleCurrencyChange = (val: string) => {
-    setCurrency(val);
-    if (ethToInrRate && price && !isNaN(Number(price))) {
-       if (val === 'ETH') {
-         setInrPrice(Number(price) * ethToInrRate);
-       } else if (val === 'INR') {
-         setInrPrice(Number(price) / ethToInrRate); // This string stores ETH amount when INR is selected!
-       } else {
-         setInrPrice(null);
-       }
-    } else {
-      setInrPrice(null);
-    }
-  };
+  // Derived ETH preview
+  const ethPreview = priceInr && !isNaN(Number(priceInr)) && ethRate
+    ? (Number(priceInr) / ethRate).toFixed(6)
+    : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tokenId || !price) return;
+    if (!tokenId || !priceInr || isNaN(Number(priceInr)) || Number(priceInr) <= 0) {
+      toast.error("Please enter a valid price in ₹ INR");
+      return;
+    }
     setIsSubmitting(true);
-    
+
     try {
-      // If user listed in INR, convert to ETH before submitting
-      let finalPrice = price;
-      let finalCurrency = currency;
-      
-      if (currency === 'INR' && ethToInrRate) {
-         finalPrice = String(Number(price) / ethToInrRate);
-         finalCurrency = 'ETH';
-      }
+      // Convert INR → ETH (float) for the DB
+      const priceEth = Number(priceInr) / ethRate;
 
       const response = await api.post('/api/market/list', {
         tokenId,
-        price: finalPrice,
-        currency: finalCurrency
+        price: priceEth.toFixed(8),  // ETH as string with 8 decimal places
+        currency: 'ETH',              // Always ETH in the backend
+        priceInr: Number(priceInr),   // Store original INR for display convenience
       });
 
       if (response.data.success) {
-        toast.success("Item listed for sale successfully!");
+        toast.success("Land listed for sale successfully!");
         router.push("/marketplace");
       }
     } catch (error: any) {
@@ -117,67 +79,55 @@ export default function ListPage() {
       >
         <Card>
           <CardHeader>
-            <CardTitle>List NFT for Sale</CardTitle>
-            <CardDescription>Set a price for your land asset.</CardDescription>
+            <CardTitle>List Land NFT for Sale</CardTitle>
+            <CardDescription>
+              Enter your asking price in ₹ INR — we handle the ETH conversion automatically.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="tokenId">Token ID</Label>
-                <Input 
-                  id="tokenId" 
-                  placeholder="e.g. 1" 
+                <Input
+                  id="tokenId"
+                  placeholder="e.g. 1"
                   value={tokenId}
                   onChange={(e) => setTokenId(e.target.value)}
                   readOnly={!!prefillTokenId}
-                  required 
+                  required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="price">Price</Label>
+                <Label htmlFor="price">Price (₹ INR)</Label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input 
-                    id="price" 
+                  <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="price"
                     type="number"
-                    step="0.0001"
-                    min="0"
-                    placeholder="0.5" 
-                    className="pl-9" 
-                    value={price}
-                    onChange={(e) => handlePriceChange(e.target.value)}
-                    required 
+                    step="1"
+                    min="1"
+                    placeholder="e.g. 500000"
+                    className="pl-9"
+                    value={priceInr}
+                    onChange={(e) => setPriceInr(e.target.value)}
+                    required
                   />
                 </div>
-                {inrPrice !== null && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {currency === 'ETH' 
-                      ? `≈ ₹${inrPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` 
-                      : currency === 'INR' 
-                        ? `≈ ${inrPrice.toFixed(4)} ETH` 
-                        : ''}
+                {ethPreview && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    ≈ <span className="font-mono">{ethPreview} ETH</span>
+                    <span className="ml-2 text-xs opacity-60">(at today's rate: ₹{ethRate.toLocaleString('en-IN')}/ETH)</span>
                   </p>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
-                <Select value={currency} onValueChange={handleCurrencyChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ETH">ETH</SelectItem>
-                    <SelectItem value="INR">INR (₹)</SelectItem>
-                    <SelectItem value="USDT">USDT</SelectItem>
-                    <SelectItem value="MATIC">MATIC</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Listing..." : "Approve & List"}
+              <Button type="submit" className="w-full" disabled={isSubmitting || !priceInr}>
+                {isSubmitting ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Listing...</>
+                ) : (
+                  "List for Sale"
+                )}
               </Button>
             </form>
           </CardContent>

@@ -13,11 +13,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { tokenId, price, currency } = await request.json();
+    const { tokenId, price, currency, priceInr } = await request.json();
 
-    if (!tokenId || !price || !currency) {
+    if (!tokenId || !price) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
+    // ALWAYS store as ETH — frontend may send INR display value but currency is normalized here
+    const storedCurrency = 'ETH';
 
     await dbConnect();
 
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
       sellerWallet: land.ownerWallet,
       price: {
         amount: parseFloat(price),
-        currency
+        currency: storedCurrency
       },
       status: 'active'
     });

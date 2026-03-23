@@ -10,6 +10,8 @@ import api from "@/lib/api-client";
 import { AddToMetaMask } from "@/components/AddToMetaMask";
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
+import { ethers } from "ethers";
+import { fetchEthToInrRate, weiToInr } from "@/lib/utils/pricing";
 
 export default function NFTDetailsPage() {
   const params = useParams();
@@ -22,6 +24,7 @@ export default function NFTDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [ethRate, setEthRate] = useState<number>(250000);
 
   useEffect(() => {
     const fetchNFT = async () => {
@@ -43,23 +46,45 @@ export default function NFTDetailsPage() {
 
     if (tokenId) {
       fetchNFT();
+      fetchEthToInrRate().then(setEthRate);
     }
   }, [tokenId]);
 
-const handleTradeNow = async () => {
-      if (!user) {
-        toast.error("Please sign in to trade");
-        return;
+  const handleTradeNow = async () => {
+    if (!user) {
+      toast.error("Please sign in to trade");
+      return;
+    }
+    if (!window.ethereum) {
+      toast.error("Please install MetaMask to trade");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum as any);
+      const signer = await provider.getSigner();
+      const buyerWallet = await signer.getAddress();
+
+      // Convert the listing price (ETH string) to WEI for the trade request
+      const listingPriceWei = listing?.price?.amount
+        ? ethers.parseEther(String(listing.price.amount)).toString()
+        : "0";
+
+      const response = await api.post('/api/trades', {
+        landId: land.landId || land.id,
+        tokenId: land.tokenId,
+        buyerWallet,
+        sellerClerkId: land.ownerClerkId,
+        sellerWallet: land.ownerWallet,
+        initialPriceWei: listingPriceWei,
+      });
+      if (response.data.success) {
+        toast.success("Trade request created successfully!");
+        router.push(`/trades/${response.data.trade.tradeId}`);
       }
-      setActionLoading(true);
-      try {
-        const response = await api.post('/api/trades', { landId: land.id, price: { amount: listing.price.amount, currency: listing.price.currency } });
-        if (response.data.success) {
-          toast.success("Trade request created successfully!");
-          router.push(`/trades/${response.data.data.id}`);
-        }
-      } catch (error: any) {
-        toast.error(error.response?.data?.error || "Failed to create trade request");
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Failed to create trade request");
     } finally {
       setActionLoading(false);
     }
@@ -88,6 +113,11 @@ const handleTradeNow = async () => {
   const ipfsImage = land.ipfsCid ? `https://gateway.pinata.cloud/ipfs/${land.ipfsCid}` : 'https://placehold.co/600x400/png?text=LandLedger+NFT';
   const isOwner = user && user.id === land.ownerClerkId;
 
+  // Format listing price in INR if we have the rate
+  const listingPriceInr = listing?.price?.amount && ethRate
+    ? weiToInr(ethers.parseEther(String(listing.price.amount)).toString(), ethRate)
+    : null;
+
   return (
     <div className="container mx-auto px-4 py-12">
       <Button variant="ghost" className="mb-6 gap-2" onClick={() => router.back()}>
@@ -113,6 +143,7 @@ const handleTradeNow = async () => {
           {listing && (
             <div className="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1 shadow-lg">
               <Tag className="w-3 h-3" /> FOR SALE: {listing.price.amount} {listing.price.currency}
+              {listingPriceInr && <span className="ml-1 opacity-80">({listingPriceInr})</span>}
             </div>
           )}
         </motion.div>
@@ -189,17 +220,22 @@ const handleTradeNow = async () => {
 
             {listing && !isOwner && (
               <Button 
-                  onClick={handleTradeNow} 
-                  disabled={actionLoading}
-                  className="w-full gap-2 text-lg py-6 bg-primary hover:bg-primary/90"
-                >
-                  <ShoppingCart className="w-5 h-5" />
-                  {actionLoading ? "Processing..." : `Start Trade for ${listing.price.amount} ${listing.price.currency}`}
+                onClick={handleTradeNow} 
+                disabled={actionLoading}
+                className="w-full gap-2 text-lg py-6 bg-primary hover:bg-primary/90"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {actionLoading ? "Processing..." : `Start Trade — ${listing.price.amount} ${listing.price.currency}${listingPriceInr ? ` (${listingPriceInr})` : ''}`}
+              </Button>
+            )}
 
             {listing && isOwner && (
               <div className="p-4 border border-primary/30 bg-primary/5 rounded-lg text-center">
                 <p className="font-semibold text-primary mb-1">Your item is listed for sale</p>
-                <p className="text-sm text-muted-foreground">Price: {listing.price.amount} {listing.price.currency}</p>
+                <p className="text-sm text-muted-foreground">
+                  Price: {listing.price.amount} {listing.price.currency}
+                  {listingPriceInr && <span className="ml-1">({listingPriceInr})</span>}
+                </p>
               </div>
             )}
 

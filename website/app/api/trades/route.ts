@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
+import dbConnect from '@/lib/mongodb';
 import { TradeRequest } from '@/models/TradeRequest';
 import { Notification } from '@/models/Notification';
-import { auth } from '@clerk/nextjs';
+import { auth } from '@clerk/nextjs/server';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: Request) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { landId, tokenId, buyerWallet, sellerClerkId, sellerWallet, initialPriceWei } = body;
 
-    await connectToDatabase();
+    await dbConnect();
 
     // Create the trade request
     const tradeId = `TRD-${uuidv4().substring(0, 8).toUpperCase()}`;
@@ -53,12 +53,12 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await connectToDatabase();
+    await dbConnect();
 
     // Fetch trades where user is buyer OR seller
     const trades = await TradeRequest.find({

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import api from "@/lib/api-client";
 import { useUserSync } from "@/hooks/useUserSync";
 import { useEthPrice } from "@/hooks/useEthPrice";
+import { ethers } from "ethers";
 import { AddToMetaMask } from "@/components/AddToMetaMask";
 
 export default function LandDetailsPage() {
@@ -234,10 +235,20 @@ export default function LandDetailsPage() {
                       )
                     ) : land.activeListing ? (
                       <Button className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white" onClick={() => {
-                          toast.promise(api.post('/api/trades', { landId: land.id, price: { amount: land.activeListing.price.amount, currency: land.activeListing.price.currency } }), {
+                          // Convert listing price (ETH string) to WEI
+                          const initialPriceWei = land.activeListing?.price?.amount
+                            ? ethers.parseEther(String(land.activeListing.price.amount)).toString()
+                            : '0';
+                          toast.promise(api.post('/api/trades', {
+                            landId: land.landId || land.id,
+                            tokenId: land.tokenId,
+                            sellerClerkId: land.ownerClerkId,
+                            sellerWallet: land.ownerWallet,
+                            initialPriceWei,
+                          }), {
                             loading: 'Creating trade request...',
                             success: (res) => {
-                              setTimeout(() => router.push(`/trades/${res.data.id}`), 1500);
+                              setTimeout(() => router.push(`/trades/${res.data.trade?.tradeId || res.data.id}`), 1500);
                               return 'Trade request created!';
                             },
                             error: 'Failed to create trade request'

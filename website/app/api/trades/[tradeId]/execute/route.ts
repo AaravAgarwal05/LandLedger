@@ -4,10 +4,11 @@ import { TradeRequest } from '@/models/TradeRequest';
 import { Notification } from '@/models/Notification';
 import { NFTToken } from '@/models/NFTToken';
 import { Land } from '@/models/Land';
+import { Listing } from '@/models/Listing';
 import { Transaction } from '@/models/Transaction';
 import { Message } from '@/models/Message';
 import { ethers } from 'ethers';
-import { LAND_ESCROW_ABI } from '@/lib/contracts/abis';
+import { LAND_ESCROW_ABI, ERC721_ABI } from '@/lib/contracts/abis';
 import { auth } from '@clerk/nextjs/server';
 
 export async function POST(req: Request, { params }: { params: Promise<{ tradeId: string }> | { tradeId: string } }) {
@@ -52,10 +53,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ tradeId
 
     const escrowContract = new ethers.Contract(targetEscrow, LAND_ESCROW_ABI, adminWallet);
 
-    // Verify on-chain state
+    // Verify on-chain state before executing
     const onChainTrade = await escrowContract.trades(tradeId);
     if (!onChainTrade.isFunded || !onChainTrade.isNftDeposited) {
-        return NextResponse.json({ error: 'Trade assets are not fully deposited on-chain yet' }, { status: 400 });
+      return NextResponse.json({ error: 'Trade assets are not fully deposited on-chain yet' }, { status: 400 });
+    }
+    if (onChainTrade.isCompleted) {
+      return NextResponse.json({ error: 'Trade is already completed on-chain' }, { status: 400 });
     }
 
     // Execute the atomic swap on-chain
@@ -101,7 +105,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ tradeId
       await land.save();
     }
 
-    // 4. Record Transaction in DB
+    // 4. Remove from Marketplace (Unlist)
+    await Listing.findOneAndDelete({ landId: trade.landId });
+
+    // 5. Record Transaction in DB
     await Transaction.create({
       type: 'evm',
       relatedId: tradeId,
