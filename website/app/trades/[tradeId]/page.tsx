@@ -7,11 +7,12 @@ import apiClient from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, Send, Handshake, AlertCircle, CheckCircle2, Building2 } from "lucide-react";
+import { Loader2, Send, Handshake, AlertCircle, CheckCircle2, Building2, X, IndianRupee } from "lucide-react";
 import { toast } from "sonner";
 import { ethers, BrowserProvider, Contract } from "ethers";
 import { LAND_ESCROW_ABI } from "@/lib/contracts/abis";
 import { fetchEthToInrRate, weiToInr, weiToEth } from "@/lib/utils/pricing";
+import { motion, AnimatePresence } from "framer-motion";
 
 const ESCROW_ADDRESS = process.env.NEXT_PUBLIC_ESCROW_CONTRACT_ADDRESS || "";
 const NFT_ADDRESS = process.env.NEXT_PUBLIC_NFT_CONTRACT || "";
@@ -31,6 +32,8 @@ export default function TradeRoom() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [ethRate, setEthRate] = useState<number>(250000);
+  const [isProposeModalOpen, setIsProposeModalOpen] = useState(false);
+  const [proposalPrice, setProposalPrice] = useState("");
   
   // On-chain state
   const [isFunded, setIsFunded] = useState(false);
@@ -166,14 +169,17 @@ export default function TradeRoom() {
     }
   };
 
-  const handleProposePrice = async () => {
-    const newPriceInr = prompt("Enter new price proposal (in ₹ INR):");
-    if (!newPriceInr || isNaN(Number(newPriceInr))) return;
+  const submitProposal = async () => {
+    if (!proposalPrice || isNaN(Number(proposalPrice)) || Number(proposalPrice) <= 0) {
+      toast.error("Please enter a valid price greater than 0");
+      return;
+    }
     try {
+      setIsProposeModalOpen(false);
       const { inrToWei } = await import('@/lib/utils/pricing');
-      const priceWei = inrToWei(Number(newPriceInr), ethRate);
+      const priceWei = inrToWei(Number(proposalPrice), ethRate);
       setActionLoading(true);
-      const formattedInr = Number(newPriceInr).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+      const formattedInr = Number(proposalPrice).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
       const res = await apiClient.post(`/api/trades/${tradeId}/chat`, {
         content: `Proposed new price: ${formattedInr}`,
         type: 'proposal',
@@ -182,6 +188,7 @@ export default function TradeRoom() {
       if (res.data.success) {
         setMessages([...messages, res.data.message]);
         fetchTradeDocs();
+        setProposalPrice("");
       }
     } catch (err) {
       toast.error("Failed to propose price");
@@ -421,7 +428,7 @@ export default function TradeRoom() {
             <CardTitle className="text-lg flex justify-between items-center">
               <span>Negotiation Room</span>
               {!isExecutedOrCancelled && (
-                <Button variant="outline" size="sm" onClick={handleProposePrice} disabled={actionLoading}>Propose New Price</Button>
+                <Button variant="outline" size="sm" onClick={() => setIsProposeModalOpen(true)} disabled={actionLoading}>Propose New Price</Button>
               )}
             </CardTitle>
           </CardHeader>
@@ -492,6 +499,63 @@ export default function TradeRoom() {
           )}
         </Card>
       </div>
+
+      {/* Proposal Modal */}
+      <AnimatePresence>
+        {isProposeModalOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+              onClick={() => setIsProposeModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -20 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-sm translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-2xl"
+            >
+              <div className="flex flex-col space-y-2 text-center sm:text-left">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-lg font-semibold leading-none tracking-tight">Propose New Price</h2>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setIsProposeModalOpen(false)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Enter your proposed price in ₹ INR. This will be sent as a message to the other party.
+                </p>
+              </div>
+              <div className="relative mt-2">
+                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="number"
+                  placeholder="e.g. 500000"
+                  className="pl-9"
+                  value={proposalPrice}
+                  onChange={(e) => setProposalPrice(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && submitProposal()}
+                />
+              </div>
+              {proposalPrice && !isNaN(Number(proposalPrice)) && (
+                <p className="text-sm text-muted-foreground text-center">
+                  ≈ <span className="font-mono">{((Number(proposalPrice) / ethRate) || 0).toFixed(6)} ETH</span>
+                </p>
+              )}
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-4">
+                <Button variant="outline" onClick={() => setIsProposeModalOpen(false)}>Cancel</Button>
+                <Button onClick={submitProposal} disabled={actionLoading || !proposalPrice}>
+                  {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Submit Proposal
+                </Button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

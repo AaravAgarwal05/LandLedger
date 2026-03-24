@@ -12,7 +12,7 @@ const relayer_1 = require("./bridge/relayer");
 const listener_1 = require("./bridge/listener");
 const processor_1 = require("./bridge/processor");
 // Load environment variables
-dotenv_1.default.config();
+dotenv_1.default.config({ path: '.env.local' });
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3001;
 app.use((0, cors_1.default)());

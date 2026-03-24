@@ -36,7 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.fabricConfig = void 0;
 const path = __importStar(require("path"));
 // Path to the test-network directory
-const TEST_NETWORK_PATH = 'c:/Coding_Playground/Codes/BlockChain/AyurSure/blockchain/fabric-samples/test-network';
+const TEST_NETWORK_PATH = 'c:/Coding_Playground/Codes/BlockChain/LandLedger/blockchain/fabric-samples/test-network';
 exports.fabricConfig = {
     // Connection Profile
     connectionProfilePath: path.resolve(TEST_NETWORK_PATH, 'organizations/peerOrganizations/org1.example.com/connection-org1.json'),

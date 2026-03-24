@@ -57,6 +57,11 @@ const LandSchema = new mongoose_1.Schema({
     },
     ipfsCid: String,
     fabricTxId: String,
+    // NFT Fields
+    tokenId: String,
+    tokenAddress: String,
+    mintTxHash: String,
+    mintedAt: Date,
 }, {
     timestamps: true,
 });

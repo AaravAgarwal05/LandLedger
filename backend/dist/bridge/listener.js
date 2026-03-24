@@ -8,38 +8,62 @@ class Listener {
     constructor() {
         this.isListening = false;
     }
-    async start() {
+    async start(pollIntervalMs = 30000) {
         if (this.isListening) {
             console.log('⚠️  Listener already running');
             return;
         }
-        console.log('👂 Starting Fabric event listener...');
+        console.log(`👂 Starting Fabric event listener (polling every ${pollIntervalMs}ms)...`);
         this.isListening = true;
         try {
+            // 1. Run initial sync
+            await this.syncMissedLands();
+            // 2. Start periodic polling
+            this.intervalId = setInterval(async () => {
+                await this.syncMissedLands();
+            }, pollIntervalMs);
             const contract = await (0, gateway_1.getContract)();
-            // Set up chaincode event listener
-            const eventListener = async (event) => {
-                try {
-                    const payload = JSON.parse(event.payload.toString());
-                    console.log(`📬 Received Fabric event:`, payload);
-                    if (event.eventName === 'LandRegistered') {
-                        await this.handleLandRegistered(payload);
-                    }
-                    else if (event.eventName === 'TokenInfoUpdated') {
-                        console.log(`ℹ️  TokenInfoUpdated event received for landId: ${payload.landId}`);
-                    }
-                }
-                catch (error) {
-                    console.error('❌ Error processing Fabric event:', error);
-                }
-            };
-            // Note: In production, you'd use contract.addContractListener or similar
-            // For now, we'll use a polling approach
-            console.log('✅ Listener started (polling mode)');
+            console.log('✅ Listener started (Polling mode active)');
         }
         catch (error) {
             console.error('❌ Failed to start listener:', error);
             this.isListening = false;
+        }
+    }
+    async syncMissedLands() {
+        try {
+            console.log('🔄 Syncing missed lands...');
+            // Find all lands that are registered on Fabric but don't have an NFTToken record
+            // We look for status 'fabric_registered' or 'mint_failed' and ensure ipfsCid exists
+            const lands = await Land_1.Land.find({
+                status: { $in: ['fabric_registered', 'mint_failed'] },
+                ipfsCid: { $exists: true, $ne: '' }
+            });
+            console.log(`🔎 Found ${lands.length} fabric_registered/mint_failed lands to check`);
+            for (const land of lands) {
+                // Check if NFTToken exists
+                const existingToken = await NFTToken_1.NFTToken.findOne({ landId: land.landId });
+                if (!existingToken) {
+                    console.log(`➕ Queueing missed land ${land.landId} for minting`);
+                    const nftToken = new NFTToken_1.NFTToken({
+                        landId: land.landId,
+                        ownerWallet: land.ownerWallet.toLowerCase(),
+                        ipfsCid: land.ipfsCid,
+                        status: 'ready_to_mint',
+                    });
+                    await nftToken.save();
+                }
+                else if (existingToken.status === 'mint_failed') {
+                    console.log(`🔄 Retrying failed mint for land ${land.landId}`);
+                    existingToken.status = 'ready_to_mint';
+                    existingToken.error = undefined; // Clear previous error
+                    await existingToken.save();
+                }
+            }
+            console.log('✅ Sync complete');
+        }
+        catch (error) {
+            console.error('❌ Sync failed:', error);
         }
     }
     async handleLandRegistered(payload) {
@@ -77,6 +101,10 @@ class Listener {
         }
     }
     stop() {
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+            this.intervalId = undefined;
+        }
         this.isListening = false;
         console.log('🛑 Listener stopped');
     }

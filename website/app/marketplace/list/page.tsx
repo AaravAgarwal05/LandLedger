@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { IndianRupee, Loader2 } from "lucide-react";
@@ -14,7 +14,7 @@ import { useUserSync } from "@/hooks/useUserSync";
 import { fetchEthToInrRate, inrToWei } from "@/lib/utils/pricing";
 import { ethers } from "ethers";
 
-export default function ListPage() {
+function ListFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isSignedIn, loading: authLoading } = useUserSync();
@@ -134,5 +134,17 @@ export default function ListPage() {
         </Card>
       </motion.div>
     </div>
+  );
+}
+
+export default function ListPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-12 flex justify-center items-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    }>
+      <ListFormContent />
+    </Suspense>
   );
 }

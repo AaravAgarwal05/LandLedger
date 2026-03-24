@@ -62,7 +62,15 @@ class Processor {
             token.mintedAt = new Date();
             await token.save();
             // 4. Update Land doc
-            await Land_1.Land.findOneAndUpdate({ landId: token.landId }, { $set: { status: 'minted' } });
+            await Land_1.Land.findOneAndUpdate({ landId: token.landId }, {
+                $set: {
+                    status: 'minted',
+                    tokenId: tokenId,
+                    tokenAddress: contractAddress,
+                    mintTxHash: txHash,
+                    mintedAt: new Date()
+                }
+            });
             // 5. Update Fabric world-state
             await (0, gateway_1.submitTransaction)('UpdateTokenInfo', token.landId, contractAddress, tokenId, txHash);
             console.log(`✅ Updated Fabric world-state for landId: ${token.landId}`);

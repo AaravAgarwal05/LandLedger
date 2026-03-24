@@ -58,13 +58,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ tradeId
     if (!onChainTrade.isFunded || !onChainTrade.isNftDeposited) {
       return NextResponse.json({ error: 'Trade assets are not fully deposited on-chain yet' }, { status: 400 });
     }
-    if (onChainTrade.isCompleted) {
-      return NextResponse.json({ error: 'Trade is already completed on-chain' }, { status: 400 });
-    }
+    let txHash = "recovered_after_onchain_execution";
+    let blockNumber = null;
+    let gasUsed = null;
 
-    // Execute the atomic swap on-chain
-    const tx = await escrowContract.executeTrade(tradeId);
-    const receipt = await tx.wait();
+    if (!onChainTrade.isCompleted) {
+      // Execute the atomic swap on-chain
+      const tx = await escrowContract.executeTrade(tradeId);
+      const receipt = await tx.wait();
+      txHash = tx.hash;
+      blockNumber = receipt?.blockNumber;
+      gasUsed = receipt?.gasUsed?.toString();
+    }
 
     // ──────────────────────────────────────────────────────── 
     // SYNC DATABASE STATE AFTER SUCCESSFUL ON-CHAIN EXECUTION
@@ -72,7 +77,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ tradeId
 
     // 1. Update Trade record
     trade.status = 'executed';
-    trade.txHash = tx.hash;
+    trade.txHash = txHash;
     if (escrowAddress) trade.escrowContractAddress = escrowAddress;
     await trade.save();
 
@@ -81,14 +86,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ tradeId
     if (nft) {
       nft.provenance.push({
         action: 'transfer',
-        txHash: tx.hash,
+        txHash: txHash,
         timestamp: new Date(),
         from: trade.sellerWallet?.toLowerCase(),
         to: trade.buyerWallet?.toLowerCase(),
         note: `Atomic swap via trade ${tradeId}`,
       });
       nft.ownerWallet = trade.buyerWallet?.toLowerCase();
-      await nft.save();
+      await nft.save({ validateBeforeSave: false });
     }
 
     // 3. Update Land ownership → buyer
@@ -100,27 +105,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ tradeId
         status: 'minted',
         changedAt: new Date(),
         changedBy: trade.buyerClerkId,
-        notes: `Ownership transferred via trade ${tradeId} (tx: ${tx.hash})`,
+        notes: `Ownership transferred via trade ${tradeId} (tx: ${txHash})`,
       });
-      await land.save();
+      await land.save({ validateBeforeSave: false });
     }
 
     // 4. Remove from Marketplace (Unlist)
-    await Listing.findOneAndDelete({ landId: trade.landId });
+    await Listing.findOneAndDelete({ tokenId: String(trade.tokenId) });
 
     // 5. Record Transaction in DB
     await Transaction.create({
       type: 'evm',
       relatedId: tradeId,
-      txHash: tx.hash,
+      txHash: txHash,
       network: 'sepolia',
       from: trade.sellerWallet?.toLowerCase(),
       to: trade.buyerWallet?.toLowerCase(),
       status: 'confirmed',
       confirmedAt: new Date(),
       raw: {
-        blockNumber: receipt?.blockNumber,
-        gasUsed: receipt?.gasUsed?.toString(),
+        blockNumber: blockNumber,
+        gasUsed: gasUsed,
         escrowAddress: targetEscrow,
       },
     });
@@ -130,7 +135,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ tradeId
       tradeId,
       senderClerkId: 'system',
       senderRole: 'system',
-      content: `🎉 Trade Complete! NFT transferred to buyer. Funds sent to seller. Tx: ${tx.hash}`,
+      content: `🎉 Trade Complete! NFT transferred to buyer. Funds sent to seller. Tx: ${txHash}`,
       isSystemMessage: true,
       type: 'on_chain_action',
     });
@@ -153,7 +158,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ tradeId
       }
     ]);
 
-    return NextResponse.json({ success: true, message: 'Trade executed successfully', txHash: tx.hash });
+    return NextResponse.json({ success: true, message: 'Trade executed successfully', txHash: txHash });
   } catch (error: any) {
     console.error('Error executing trade via relayer:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
